@@ -5,6 +5,9 @@ on:
     - cron: '00 2 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write  # 授予 GITHUB_TOKEN 写权限
+
 jobs:
   update_data:
     runs-on: ubuntu-latest
@@ -53,8 +56,18 @@ jobs:
         python main.py
       
     - name: Commit and push changes
+      env:
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}  # 可选，如果 GITHUB_TOKEN 失败
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add .
-        git diff --cached --exit-code || git commit -m "update result" && git push origin main
+        git diff --cached --exit-code || git commit -m "update result"
+        git remote -v
+        if [ -n "$PAT_TOKEN" ]; then
+          echo "Using PAT_TOKEN to push"
+          git push https://x-access-token:$PAT_TOKEN@github.com/hjpcly5678/02.git main
+        else
+          echo "Using GITHUB_TOKEN to push"
+          git push origin main
+        fi
