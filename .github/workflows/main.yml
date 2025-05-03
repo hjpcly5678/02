@@ -14,7 +14,7 @@ jobs:
 
     steps:
     - run: echo "start update"
-     
+    
     - name: Check my code
       uses: actions/checkout@main
       
@@ -37,7 +37,7 @@ jobs:
         fi
         wget -t 3 --timeout=30 -nd -np -npH "${{ secrets.DOWNLOAD_URL }}" -O ip.zip
         file ip.zip
-        unzip -t ip.zip
+        unzip -t ip.zip || { echo "unzip failed"; exit 1; }
         unzip ip.zip -d ./ips
         ls -l ./ips/
         rm ip.zip
@@ -53,21 +53,23 @@ jobs:
     - name: Run main.py
       run: |
         ls -l ./ips/
-        python main.py
-      
+        python main.py || { echo "main.py failed"; exit 1; }
+    
     - name: Commit and push changes
       env:
-        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}  # 可选
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add .
+        git diff --cached
         git diff --cached --exit-code || git commit -m "update result"
         git remote -v
+        git status
         if [ -n "$PAT_TOKEN" ]; then
           echo "Using PAT_TOKEN to push"
           git push https://x-access-token:$PAT_TOKEN@github.com/hjpcly5678/02.git main
         else
-          echo "Using GITHUB_TOKEN to push"
+          echo "Error: PAT_TOKEN not set, falling back to GITHUB_TOKEN"
           git push origin main
         fi
