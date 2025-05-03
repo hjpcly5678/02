@@ -1,0 +1,56 @@
+name: cfip
+
+on:
+  schedule:
+    - cron: '00 2 * * *'
+
+  workflow_dispatch: # 允许手动触发
+
+#permissions:
+  #contents: write
+
+jobs:
+  update_data:
+    runs-on: ubuntu-latest
+
+    steps:
+    - run: echo "start update"
+     
+    - name: Check my code
+      uses: actions/checkout@main
+      
+    - name: Delete workflow runs
+      uses: Mattraks/delete-workflow-runs@v2
+      with:
+        token: ${{ github.token }}
+        repository: ${{ github.repository }}
+        retain_days: 1
+        keep_minimum_runs: 2  
+        
+    - name: Remove old data
+      run: rm -rf ./ip*
+    
+    - name: Get source data
+      run: |
+        wget -N -t 1 -nd -np -npH -e 'timestamping=off' "${{ secrets.DOWNLOAD_URL }}" -O ip.zip
+        unzip ip.zip -d ./ips
+        rm ip.zip
+
+    - name: Set up Python
+      uses: actions/setup-python@main
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: pip install -r ./requirements.txt
+
+    - name: Run main.py
+      run: python main.py
+      
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git diff --exit-code && git commit -m "update result"
+        git push origin main
