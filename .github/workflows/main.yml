@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # 授予 GITHUB_TOKEN 写权限
+  contents: write
 
 jobs:
   update_data:
@@ -57,7 +57,7 @@ jobs:
       
     - name: Commit and push changes
       env:
-        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}  # 可选，如果 GITHUB_TOKEN 失败
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}  # 可选
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
