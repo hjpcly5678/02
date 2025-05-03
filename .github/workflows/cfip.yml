@@ -1,0 +1,90 @@
+name: cfip
+
+on:
+  schedule:
+    - cron: '00 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update_data:
+    runs-on: ubuntu-latest
+
+    steps:
+    - run: echo "start update"
+    
+    - name: Check my code
+      uses: actions/checkout@main
+      
+    - name: Delete workflow runs
+      uses: Mattraks/delete-workflow-runs@v2
+      with:
+        token: ${{ github.token }}
+        repository: ${{ github.repository }}
+        retain_days: 1
+        keep_minimum_runs: 2  
+        
+    - name: Remove old data
+      run: |
+        echo "Removing old data"
+        rm -rf ./ip*
+        ls -l
+    
+    - name: Get source data
+      run: |
+        if [ -z "${{ secrets.DOWNLOAD_URL }}" ]; then
+          echo "Error: DOWNLOAD_URL is not set"
+          exit 1
+        fi
+        echo "Downloading from ${{ secrets.DOWNLOAD_URL }}"
+        wget -t 3 --timeout=30 -nd -np -npH "${{ secrets.DOWNLOAD_URL }}" -O ip.zip || { echo "wget failed"; exit 1; }
+        file ip.zip
+        unzip -t ip.zip || { echo "unzip test failed"; exit 1; }
+        unzip ip.zip -d ./ips
+        ls -l ./ips/
+        rm ip.zip
+
+    - name: Set up Python
+      uses: actions/setup-python@main
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        echo "Installing dependencies"
+        pip install -r ./requirements.txt
+        pip list
+
+    - name: Run main.py
+      run: |
+        echo "Running main.py"
+        ls -l ./ips/
+        python main.py || { echo "main.py failed"; exit 1; }
+    
+    - name: Format ip443 files
+      run: |
+        echo "Formatting ip443 files"
+        python format_ip443.py || { echo "format_ip443.py failed"; exit 1; }
+        ls -l ./ip443/
+    
+    - name: Commit and push changes
+      env:
+        PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+      run: |
+        echo "Committing changes"
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .
+        git diff --cached
+        git diff --cached --exit-code || git commit -m "update result with formatted IPs"
+        git remote -v
+        git status
+        if [ -n "$PAT_TOKEN" ]; then
+          echo "Using PAT_TOKEN to push"
+          git push https://x-access-token:$PAT_TOKEN@github.com/hjpcly5678/02.git main
+        else
+          echo "Using GITHUB_TOKEN to push"
+          git push origin main
+        fi
