@@ -3,11 +3,7 @@ name: cfip
 on:
   schedule:
     - cron: '00 2 * * *'
-
-  workflow_dispatch: # 允许手动触发
-
-#permissions:
-  #contents: write
+  workflow_dispatch:
 
 jobs:
   update_data:
@@ -32,8 +28,15 @@ jobs:
     
     - name: Get source data
       run: |
-        wget -N -t 1 -nd -np -npH -e 'timestamping=off' "${{ secrets.DOWNLOAD_URL }}" -O ip.zip
+        if [ -z "${{ secrets.DOWNLOAD_URL }}" ]; then
+          echo "Error: DOWNLOAD_URL is not set"
+          exit 1
+        fi
+        wget -t 3 --timeout=30 -nd -np -npH "${{ secrets.DOWNLOAD_URL }}" -O ip.zip
+        file ip.zip
+        unzip -t ip.zip
         unzip ip.zip -d ./ips
+        ls -l ./ips/
         rm ip.zip
 
     - name: Set up Python
@@ -45,12 +48,13 @@ jobs:
       run: pip install -r ./requirements.txt
 
     - name: Run main.py
-      run: python main.py
+      run: |
+        ls -l ./ips/
+        python main.py
       
     - name: Commit and push changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add .
-        git diff --exit-code && git commit -m "update result"
-        git push origin main
+        git diff --cached --exit-code || git commit -m "update result" && git push origin main
