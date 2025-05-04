@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   update_data:
@@ -21,7 +22,7 @@ jobs:
     - name: Delete workflow runs
       uses: Mattraks/delete-workflow-runs@v2
       with:
-        token: ${{ github.token }}
+        token: ${{ secrets.PAT_TOKEN }}
         repository: ${{ github.repository }}
         retain_days: 1
         keep_minimum_runs: 2  
@@ -67,6 +68,16 @@ jobs:
       run: |
         echo "Current directory: $(pwd)"
         ls -l
+    
+    - name: Verify format_ip443.py
+      run: |
+        if [ -f "format_ip443.py" ]; then
+          echo "format_ip443.py found"
+          cat format_ip443.py
+        else
+          echo "format_ip443.py not found"
+          exit 1
+        fi
     
     - name: Format ip443 files
       run: |
